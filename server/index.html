@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>MorseWatch</title>
+		<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+	</head>
+	<body> <!-- body#app would cause a "Tags with side effect" warning -->
+	<div id="app">
+		<nav class="container-fluid">
+			<ul>
+				<li><strong>MorseWatch 📻</strong></li>
+			</ul>
+			<ul>
+				<li><a href="http://localhost:8080/" role="button" class="outline">Refresh</a></li>
+				<li><a href="#" role="button" class="contrast outline" @click="switchTheme">🌗</a></li>
+			</ul>
+		</nav>
+		<main class="container"> <!-- make this container-fluid if more horizontal space is ever needed -->
+			<div class="gridd">
+				<article class="c-3">
+					<header>Devices:</header>
+					<aside>
+						<nav>
+							<ul>
+								<li v-for="d in devices" :key="d.id">
+									<a href="#" @click="selectedDevice = d">
+										<u v-if="selectedDevice == d"><b>{{ d.id }}</b></u>
+										<span v-else>{{ d.id }}</u>
+									</a>
+								</li>
+								<li><a>{{ loadingIcon }}</a></li>
+							</ul>
+						</nav>
+					</aside>
+				</article>
+				<div class="c-9 container-fluid">
+					<article id="logs">
+						<header>Logs:</header>
+						<div v-if ="selectedDevice" v-for="l in selectedDevice.logs">
+							[{{ l.timestamp }}]: {{ l.message }}
+						</div>
+					</article>
+				</div>
+			</div>
+		</main>
+	</div>
+	</body>
+	<script>
+	const { createApp, ref, computed } = Vue
+
+	createApp({
+		setup() {
+			const sampleDev = ref({
+				id: 'Example01',
+				logs: [{ timestamp: '30-11-2023 23:36:00', message: 'THIS IS AN EXAMPLE DEVICE' }],
+			})
+			const devices = ref({'Example01': sampleDev})
+			const selectedDevice = ref(null)
+			const source = new EventSource('http://localhost:8080/events/listen')
+			source.addEventListener('message', e => {
+				console.log(e.data)
+				d = JSON.parse(e.data)
+				d.timestamp = d.timestamp.substring(0, d.timestamp.lastIndexOf('.'))
+				d.timestamp = d.timestamp.replaceAll('T', ' ')
+				if (devices.value[d.id]) {
+					console.log('exists')
+					devices.value[d.id].logs.push({ timestamp: d.timestamp, message: d.message })
+				} else {
+					console.log('exists not')
+					devices.value[d.id] = {
+						id: d.id,
+						logs: [{ timestamp: d.timestamp, message: d.message }],
+					}
+				}
+			})
+
+			const ellipsis = ref('')
+			const animateEllipsis = () =>
+				ellipsis.value = ellipsis.value.length < 5 ? ellipsis.value.concat('.') : '.'
+			setInterval(animateEllipsis, 500)
+			const loadingIcon = computed(() =>
+				source.readyState === 2 ? '[CONNECTION CLOSED]' : ellipsis.value)
+
+			const theme = ref('dark')
+			const switchTheme = () => {
+				theme.value = (theme.value == 'dark') ? 'light' : 'dark'
+				document.documentElement.setAttribute('data-theme', theme.value)
+			}
+
+			return { loadingIcon, switchTheme, devices, selectedDevice }
+		}
+	}).mount('#app')
+	</script>
+	<style>
+		nav.container-fluid {
+			border-bottom: 1px solid grey;
+		}
+		#logs {
+			/*overflow-y: scroll;
+			height: 400px;*/
+			overflow: auto;
+			/*max-height: 80vh;*/
+			height: 80vh;
+		}
+
+
+		/* gridd */
+		.gridd {
+			display: flex;
+			flex-wrap: wrap;
+			width: 100%;
+		}
+		.gridd::after {
+			content: "";
+			clear: both;
+			display: table;
+		}
+		[class*="c-"] {
+			/*float: left;*/
+			box-sizing: border-box;
+			/*padding: 15px;*/
+		}
+		.c-1  {width: 8.33%; }
+		.c-2  {width: 16.66%;}
+		.c-3  {width: 25%;   }
+		.c-4  {width: 33.33%;}
+		.c-5  {width: 41.66%;}
+		.c-6  {width: 50%;   }
+		.c-7  {width: 58.33%;}
+		.c-8  {width: 66.66%;}
+		.c-9  {width: 75%;   }
+		.c-10 {width: 83.33%;}
+		.c-11 {width: 91.66%;}
+		.c-12 {width: 100%;  }
+	</style>
+</html>
